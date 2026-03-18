@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>五子棋大师</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎮 五子棋大师</h1>
+        </header>
+
+        <!-- 游戏设置面板 -->
+        <div class="settings-panel" id="settingsPanel">
+            <div class="setting-group">
+                <label>游戏模式</label>
+                <div class="radio-group">
+                    <label class="radio-btn active" data-value="pve">
+                        <input type="radio" name="gameMode" value="pve" checked>
+                        <span>人机对战</span>
+                    </label>
+                    <label class="radio-btn" data-value="pvp">
+                        <input type="radio" name="gameMode" value="pvp">
+                        <span>双人对战</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="setting-group ai-settings">
+                <label>AI 难度</label>
+                <div class="radio-group">
+                    <label class="radio-btn" data-value="easy">
+                        <input type="radio" name="difficulty" value="easy">
+                        <span>简单</span>
+                    </label>
+                    <label class="radio-btn active" data-value="medium">
+                        <input type="radio" name="difficulty" value="medium" checked>
+                        <span>中等</span>
+                    </label>
+                    <label class="radio-btn" data-value="hard">
+                        <input type="radio" name="difficulty" value="hard">
+                        <span>困难</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="setting-group ai-settings">
+                <label>玩家执子</label>
+                <div class="radio-group">
+                    <label class="radio-btn active" data-value="black">
+                        <input type="radio" name="playerColor" value="black" checked>
+                        <span>⚫ 执黑先行</span>
+                    </label>
+                    <label class="radio-btn" data-value="white">
+                        <input type="radio" name="playerColor" value="white">
+                        <span>⚪ 执白后行</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- 游戏信息 -->
+        <div class="game-info">
+            <div class="info-item">
+                <span class="label">当前回合</span>
+                <span class="value" id="currentPlayer">⚫ 黑方</span>
+            </div>
+            <div class="info-item">
+                <span class="label">步数</span>
+                <span class="value" id="moveCount">0</span>
+            </div>
+            <div class="info-item">
+                <span class="label">用时</span>
+                <span class="value" id="gameTime">00:00</span>
+            </div>
+        </div>
+
+        <!-- 棋盘 -->
+        <div class="board-container">
+            <canvas id="board"></canvas>
+            <div class="thinking-overlay" id="thinkingOverlay">
+                <div class="thinking-spinner"></div>
+                <span>AI 思考中...</span>
+            </div>
+        </div>
+
+        <!-- 状态栏 -->
+        <div class="status-bar" id="statusBar">
+            点击「开始游戏」开始对局
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="button-group">
+            <button class="btn btn-primary" id="startBtn">开始游戏</button>
+            <button class="btn" id="undoBtn" disabled>悔棋</button>
+            <button class="btn" id="restartBtn" disabled>重新开始</button>
+        </div>
+
+        <!-- 落子记录 -->
+        <details class="move-history">
+            <summary>📋 落子记录</summary>
+            <div class="history-list" id="historyList"></div>
+        </details>
+    </div>
+
+    <!-- 游戏结束弹窗 -->
+    <div class="modal" id="gameOverModal">
+        <div class="modal-content">
+            <div class="modal-icon" id="modalIcon">🎉</div>
+            <h2 id="modalTitle">游戏结束</h2>
+            <p id="modalMessage">黑方获胜！</p>
+            <button class="btn btn-primary" id="playAgainBtn">再来一局</button>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
