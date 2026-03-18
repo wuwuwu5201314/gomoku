@@ -22,6 +22,9 @@ body {
     color: var(--text-color);
     -webkit-tap-highlight-color: transparent;
     user-select: none;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .container {
@@ -155,7 +158,7 @@ header h1 {
     width: 100%;
     height: auto;
     border-radius: 8px;
-    touch-action: none;
+    touch-action: manipulation;
 }
 
 /* AI思考中遮罩 */

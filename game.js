@@ -239,7 +239,7 @@ function handleCanvasClick(e) {
 }
 
 function handleCanvasTouchEnd(e) {
-    e.preventDefault();
+    // 只有在游戏进行中且点击有效位置时才阻止默认行为
     if (!gameState.isGameStarted || gameState.isGameOver || gameState.isThinking) return;
     if (gameState.gameMode === 'pve' && gameState.currentPlayer !== gameState.playerColor) return;
     
@@ -250,6 +250,7 @@ function handleCanvasTouchEnd(e) {
     
     const pos = getBoardPosition(x, y);
     if (pos) {
+        e.preventDefault();  // 只在有效点击时阻止
         handlePositionClick(pos);
     }
 }
