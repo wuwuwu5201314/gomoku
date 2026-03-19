@@ -372,11 +372,11 @@ function findBestMove() {
     // 第一步：多样化开局
     if (gameState.moveHistory.length === 0) {
         const openings = [
-            { row: 7, col: 7 },   // 天元
-            { row: 7, col: 8 },   // 偏右
-            { row: 8, col: 7 },   // 偏下
-            { row: 6, col: 6 },   // 左上角
-            { row: 8, col: 8 },   // 右下角
+            { row: 7, col: 7 },
+            { row: 7, col: 8 },
+            { row: 8, col: 7 },
+            { row: 6, col: 6 },
+            { row: 8, col: 8 },
         ];
         return openings[Math.floor(Math.random() * openings.length)];
     }
@@ -384,8 +384,7 @@ function findBestMove() {
     // 第二步：多样化跟随
     if (gameState.moveHistory.length === 1) {
         const last = gameState.moveHistory[0];
-        const offsets = [[-1, -1], [-1, 1], [1, -1], [1, 1], [-1, 0], [1, 0], [0, -1], [0, 1], [-2, -2], [2, 2]];
-        // 随机打乱顺序
+        const offsets = [[-1, -1], [-1, 1], [1, -1], [1, 1], [-1, 0], [1, 0], [0, -1], [0, 1]];
         offsets.sort(() => Math.random() - 0.5);
         for (const [dr, dc] of offsets) {
             const r = last.row + dr;
@@ -396,69 +395,103 @@ function findBestMove() {
         }
     }
     
-    const candidates = getCandidateMoves();
-    
-    // 快速检测：能赢就直接下
-    for (const move of candidates) {
-        gameState.board[move.row][move.col] = aiColor;
-        if (checkWin(move.row, move.col, false)) {
-            gameState.board[move.row][move.col] = EMPTY;
-            return move;
+    // ============ 关键：扫描所有空位进行评估 ============
+    let allMoves = [];
+    for (let row = 0; row < BOARD_SIZE; row++) {
+        for (let col = 0; col < BOARD_SIZE; col++) {
+            if (gameState.board[row][col] !== EMPTY) continue;
+            
+            // 计算进攻分（AI下这里能得多少分）
+            gameState.board[row][col] = aiColor;
+            let attackScore = calcPositionScore(row, col, aiColor);
+            let canWin = checkWin(row, col, false);
+            gameState.board[row][col] = EMPTY;
+            
+            // 计算防守分（对手下这里能得多少分）
+            gameState.board[row][col] = opponent;
+            let defenseScore = calcPositionScore(row, col, opponent);
+            let mustBlock = checkWin(row, col, false);
+            gameState.board[row][col] = EMPTY;
+            
+            // 如果AI能赢，直接下
+            if (canWin) {
+                return { row, col };
+            }
+            
+            // 如果必须堵，最高优先
+            if (mustBlock) {
+                return { row, col };
+            }
+            
+            // 综合评分：进攻分 + 防守分*1.1（防守略优先）
+            let totalScore = attackScore + defenseScore * 1.1;
+            
+            // 添加一点随机性
+            totalScore += (Math.random() - 0.5) * 100;
+            
+            allMoves.push({ row, col, score: totalScore, attackScore, defenseScore });
         }
-        gameState.board[move.row][move.col] = EMPTY;
-    }
-    
-    // 快速检测：对手能赢的点必须堵
-    for (const move of candidates) {
-        gameState.board[move.row][move.col] = opponent;
-        if (checkWin(move.row, move.col, false)) {
-            gameState.board[move.row][move.col] = EMPTY;
-            return move;  // 必须堵住
-        }
-        gameState.board[move.row][move.col] = EMPTY;
-    }
-    
-    // 检测对手的活四/冲四威胁
-    let urgentDefense = findUrgentDefenseMove(candidates, opponent);
-    if (urgentDefense) {
-        return urgentDefense;
-    }
-    
-    // 检测自己能否形成活四/双三
-    let urgentAttack = findUrgentAttackMove(candidates, aiColor);
-    if (urgentAttack) {
-        return urgentAttack;
-    }
-    
-    // Alpha-Beta搜索 + 多样性
-    let scoredMoves = [];
-    
-    for (const move of candidates) {
-        gameState.board[move.row][move.col] = aiColor;
-        let score = minimax(depth - 1, -Infinity, Infinity, false, aiColor);
-        gameState.board[move.row][move.col] = EMPTY;
-        
-        // 根据AI风格调整分数
-        score = applyStyleBonus(move, score, aiColor);
-        
-        // 添加随机因子（让棋路更多样）
-        score += (Math.random() - 0.5) * AI_RANDOM_FACTOR * Math.abs(score);
-        
-        scoredMoves.push({ move, score });
     }
     
     // 按分数排序
-    scoredMoves.sort((a, b) => b.score - a.score);
+    allMoves.sort((a, b) => b.score - a.score);
     
-    // 困难模式：从前3个最佳中随机选（增加不可预测性）
-    // 简单/中等：选最佳
-    if (gameState.difficulty === 'hard' && scoredMoves.length >= 3) {
-        const topN = Math.min(3, scoredMoves.length);
-        const pick = Math.floor(Math.random() * topN);
-        return scoredMoves[pick].move;
+    // 返回最佳落点
+    if (allMoves.length > 0) {
+        // 困难模式从前3个中随机选
+        if (gameState.difficulty === 'hard' && allMoves.length >= 3) {
+            const pick = Math.floor(Math.random() * 3);
+            return { row: allMoves[pick].row, col: allMoves[pick].col };
+        }
+        return { row: allMoves[0].row, col: allMoves[0].col };
     }
     
-    return scoredMoves.length > 0 ? scoredMoves[0].move : null;
+    return { row: 7, col: 7 };
+}
+
+// 计算某位置的分数（基于棋型）
+function calcPositionScore(row, col, color) {
+    const directions = [[0, 1], [1, 0], [1, 1], [1, -1]];
+    let score = 0;
+    
+    for (const [dr, dc] of directions) {
+        let count = 1;
+        let openEnds = 0;
+        
+        // 正向数
+        let r = row + dr, c = col + dc;
+        while (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && gameState.board[r][c] === color) {
+            count++;
+            r += dr;
+            c += dc;
+        }
+        if (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && gameState.board[r][c] === EMPTY) {
+            openEnds++;
+        }
+        
+        // 反向数
+        r = row - dr;
+        c = col - dc;
+        while (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && gameState.board[r][c] === color) {
+            count++;
+            r -= dr;
+            c -= dc;
+        }
+        if (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && gameState.board[r][c] === EMPTY) {
+            openEnds++;
+        }
+        
+        // 根据连子数和开放端计分
+        if (count >= 5) score += 100000;
+        else if (count === 4 && openEnds === 2) score += 50000;  // 活四
+        else if (count === 4 && openEnds === 1) score += 10000;  // 冲四
+        else if (count === 3 && openEnds === 2) score += 5000;   // 活三
+        else if (count === 3 && openEnds === 1) score += 500;    // 眠三
+        else if (count === 2 && openEnds === 2) score += 200;    // 活二
+        else if (count === 2 && openEnds === 1) score += 50;     // 眠二
+    }
+    
+    return score;
 }
 
 // 寻找紧急防守点（扫描整个棋盘找对手的威胁）
