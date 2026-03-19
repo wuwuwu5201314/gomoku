@@ -29,9 +29,7 @@ const SCORES = {
 };
 
 // ==================== 游戏状态 ====================
-c:\Users\wb.wuqingchao\Desktop\GomokuMaster\web\index.html
-c:\Users\wb.wuqingchao\Desktop\GomokuMaster\web\style.css
-c:\Users\wb.wuqingchao\Desktop\GomokuMaster\web\game.js
+let gameState = {
     board: [],
     currentPlayer: BLACK,
     gameMode: 'pve',
