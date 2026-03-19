@@ -8,11 +8,11 @@ const EMPTY = 0;
 const BLACK = 1;
 const WHITE = 2;
 
-// AI搜索深度（大幅提升）
+// AI搜索深度（平衡难度和速度）
 const DEPTH = {
-    easy: 4,
-    medium: 6,
-    hard: 8  // 地狱难度
+    easy: 2,
+    medium: 4,
+    hard: 5  // 困难但不会太慢
 };
 
 // 棋型分值（地狱版）
@@ -29,7 +29,9 @@ const SCORES = {
 };
 
 // ==================== 游戏状态 ====================
-let gameState = {
+c:\Users\wb.wuqingchao\Desktop\GomokuMaster\web\index.html
+c:\Users\wb.wuqingchao\Desktop\GomokuMaster\web\style.css
+c:\Users\wb.wuqingchao\Desktop\GomokuMaster\web\game.js
     board: [],
     currentPlayer: BLACK,
     gameMode: 'pve',
@@ -361,6 +363,7 @@ function makeAIMove() {
 function findBestMove() {
     const depth = DEPTH[gameState.difficulty] || 3;
     const aiColor = gameState.currentPlayer;
+    const opponent = aiColor === BLACK ? WHITE : BLACK;
     
     // 第一步下天元
     if (gameState.moveHistory.length === 0) {
@@ -380,11 +383,31 @@ function findBestMove() {
         }
     }
     
+    const candidates = getCandidateMoves();
+    
+    // 快速检测：能赢就直接下
+    for (const move of candidates) {
+        gameState.board[move.row][move.col] = aiColor;
+        if (checkWin(move.row, move.col, false)) {
+            gameState.board[move.row][move.col] = EMPTY;
+            return move;
+        }
+        gameState.board[move.row][move.col] = EMPTY;
+    }
+    
+    // 快速检测：必须防守的点
+    for (const move of candidates) {
+        gameState.board[move.row][move.col] = opponent;
+        if (checkWin(move.row, move.col, false)) {
+            gameState.board[move.row][move.col] = EMPTY;
+            return move;  // 必须堵住
+        }
+        gameState.board[move.row][move.col] = EMPTY;
+    }
+    
     // Alpha-Beta搜索
     let bestMove = null;
     let bestScore = -Infinity;
-    
-    const candidates = getCandidateMoves();
     
     for (const move of candidates) {
         gameState.board[move.row][move.col] = aiColor;
@@ -472,8 +495,8 @@ function getCandidateMoves() {
         return scoreB - scoreA;
     });
     
-    // 根据难度限制候选数量（增加搜索广度）
-    const maxCandidates = gameState.difficulty === 'hard' ? 50 : (gameState.difficulty === 'medium' ? 40 : 30);
+    // 根据难度限制候选数量
+    const maxCandidates = gameState.difficulty === 'hard' ? 20 : (gameState.difficulty === 'medium' ? 15 : 12);
     return candidates.slice(0, maxCandidates);
 }
 
