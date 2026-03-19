@@ -8,11 +8,11 @@ const EMPTY = 0;
 const BLACK = 1;
 const WHITE = 2;
 
-// AI搜索深度（平衡难度和速度）
+// AI搜索深度（快速响应）
 const DEPTH = {
-    easy: 2,
-    medium: 4,
-    hard: 5  // 困难但不会太慢
+    easy: 1,
+    medium: 2,
+    hard: 3  // 快速且聪明
 };
 
 // 棋型分值（地狱版）
@@ -343,19 +343,15 @@ function makeAIMove() {
     if (gameState.isGameOver) return;
     
     gameState.isThinking = true;
-    elements.thinkingOverlay.classList.add('show');
-    setStatus('AI 思考中...');
     
-    setTimeout(() => {
-        const move = findBestMove();
-        
-        gameState.isThinking = false;
-        elements.thinkingOverlay.classList.remove('show');
-        
-        if (move && placeStone(move.row, move.col)) {
-            afterMove();
-        }
-    }, 100);
+    // 立即计算，不显示思考中
+    const move = findBestMove();
+    
+    gameState.isThinking = false;
+    
+    if (move && placeStone(move.row, move.col)) {
+        afterMove();
+    }
 }
 
 function findBestMove() {
@@ -493,8 +489,8 @@ function getCandidateMoves() {
         return scoreB - scoreA;
     });
     
-    // 根据难度限制候选数量
-    const maxCandidates = gameState.difficulty === 'hard' ? 20 : (gameState.difficulty === 'medium' ? 15 : 12);
+    // 限制候选数量（保证速度）
+    const maxCandidates = gameState.difficulty === 'hard' ? 12 : (gameState.difficulty === 'medium' ? 10 : 8);
     return candidates.slice(0, maxCandidates);
 }
 
