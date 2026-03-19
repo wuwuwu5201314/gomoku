@@ -461,51 +461,66 @@ function findBestMove() {
     return scoredMoves.length > 0 ? scoredMoves[0].move : null;
 }
 
-// 寻找紧急防守点（对手的活四、冲四、活三）
+// 寻找紧急防守点（扫描整个棋盘找对手的威胁）
 function findUrgentDefenseMove(candidates, opponent) {
-    for (const move of candidates) {
-        gameState.board[move.row][move.col] = opponent;
-        const threat = evaluatePointThreat(move.row, move.col, opponent);
-        gameState.board[move.row][move.col] = EMPTY;
-        
-        // 活四或冲四必须防守
-        if (threat.hasFour) {
-            return move;
+    // 扫描棋盘上所有空位，找出对手下了会形成威胁的点
+    let threats = [];
+    
+    for (let row = 0; row < BOARD_SIZE; row++) {
+        for (let col = 0; col < BOARD_SIZE; col++) {
+            if (gameState.board[row][col] !== EMPTY) continue;
+            
+            gameState.board[row][col] = opponent;
+            const threat = evaluatePointThreat(row, col, opponent);
+            gameState.board[row][col] = EMPTY;
+            
+            if (threat.hasFour) {
+                // 冲四/活四最紧急，立即返回
+                return { row, col };
+            }
+            
+            if (threat.liveThreeCount >= 1) {
+                threats.push({ row, col, priority: threat.liveThreeCount });
+            }
         }
     }
     
-    // 检测活三（稍低优先级但也很重要）
-    for (const move of candidates) {
-        gameState.board[move.row][move.col] = opponent;
-        const threat = evaluatePointThreat(move.row, move.col, opponent);
-        gameState.board[move.row][move.col] = EMPTY;
-        
-        if (threat.liveThreeCount >= 1) {
-            return move;
-        }
+    // 返回最紧急的活三威胁点
+    if (threats.length > 0) {
+        threats.sort((a, b) => b.priority - a.priority);
+        return threats[0];
     }
     
     return null;
 }
 
-// 寻找紧急进攻点（自己的活四、双三）
+// 寻找紧急进攻点（扫描整个棋盘找自己的进攻点）
 function findUrgentAttackMove(candidates, aiColor) {
-    for (const move of candidates) {
-        gameState.board[move.row][move.col] = aiColor;
-        const threat = evaluatePointThreat(move.row, move.col, aiColor);
-        gameState.board[move.row][move.col] = EMPTY;
-        
-        // 活四必下
-        if (threat.hasFour) {
-            return move;
-        }
-        
-        // 双活三也是好棋
-        if (threat.liveThreeCount >= 2) {
-            return move;
+    let bestAttack = null;
+    let bestPriority = 0;
+    
+    for (let row = 0; row < BOARD_SIZE; row++) {
+        for (let col = 0; col < BOARD_SIZE; col++) {
+            if (gameState.board[row][col] !== EMPTY) continue;
+            
+            gameState.board[row][col] = aiColor;
+            const threat = evaluatePointThreat(row, col, aiColor);
+            gameState.board[row][col] = EMPTY;
+            
+            // 活四必下
+            if (threat.hasFour) {
+                return { row, col };
+            }
+            
+            // 双活三也是好棋
+            if (threat.liveThreeCount >= 2 && threat.liveThreeCount > bestPriority) {
+                bestPriority = threat.liveThreeCount;
+                bestAttack = { row, col };
+            }
         }
     }
-    return null;
+    
+    return bestAttack;
 }
 
 // 评估某个位置的威胁程度
@@ -513,19 +528,26 @@ function evaluatePointThreat(row, col, color) {
     const directions = [[0, 1], [1, 0], [1, 1], [1, -1]];
     let hasFour = false;
     let liveThreeCount = 0;
+    let sleepThreeCount = 0;
     
     for (const [dr, dc] of directions) {
         const { count, openEnds } = countLine(row, col, dr, dc, color);
         
-        if (count >= 4 && openEnds >= 1) {
+        // 四连（包括活四和冲四）
+        if (count >= 4) {
             hasFour = true;
         }
+        // 活三（两端都开放）
         if (count === 3 && openEnds === 2) {
             liveThreeCount++;
         }
+        // 眠三（一端开放）也要防守
+        if (count === 3 && openEnds === 1) {
+            sleepThreeCount++;
+        }
     }
     
-    return { hasFour, liveThreeCount };
+    return { hasFour, liveThreeCount, sleepThreeCount };
 }
 
 // 根据AI风格给予额外加分
