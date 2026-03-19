@@ -8,12 +8,16 @@ const EMPTY = 0;
 const BLACK = 1;
 const WHITE = 2;
 
-// AI搜索深度（快速响应）
+// AI搜索深度（地狱难度但保持快速）
 const DEPTH = {
-    easy: 1,
-    medium: 2,
-    hard: 3  // 快速且聪明
+    easy: 2,
+    medium: 3,
+    hard: 4  // 地狱难度
 };
+
+// AI 随机风格（每局随机选择，增加多样性）
+let aiStyle = 'balanced';
+const AI_RANDOM_FACTOR = 0.1; // 10%随机性
 
 // 棋型分值（地狱版）
 const SCORES = {
@@ -359,15 +363,30 @@ function findBestMove() {
     const aiColor = gameState.currentPlayer;
     const opponent = aiColor === BLACK ? WHITE : BLACK;
     
-    // 第一步下天元
-    if (gameState.moveHistory.length === 0) {
-        return { row: 7, col: 7 };
+    // 每局随机选择AI风格
+    if (gameState.moveHistory.length <= 1) {
+        const styles = ['aggressive', 'defensive', 'balanced', 'center', 'edge'];
+        aiStyle = styles[Math.floor(Math.random() * styles.length)];
     }
     
-    // 第一步跟随
+    // 第一步：多样化开局
+    if (gameState.moveHistory.length === 0) {
+        const openings = [
+            { row: 7, col: 7 },   // 天元
+            { row: 7, col: 8 },   // 偏右
+            { row: 8, col: 7 },   // 偏下
+            { row: 6, col: 6 },   // 左上角
+            { row: 8, col: 8 },   // 右下角
+        ];
+        return openings[Math.floor(Math.random() * openings.length)];
+    }
+    
+    // 第二步：多样化跟随
     if (gameState.moveHistory.length === 1) {
         const last = gameState.moveHistory[0];
-        const offsets = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+        const offsets = [[-1, -1], [-1, 1], [1, -1], [1, 1], [-1, 0], [1, 0], [0, -1], [0, 1], [-2, -2], [2, 2]];
+        // 随机打乱顺序
+        offsets.sort(() => Math.random() - 0.5);
         for (const [dr, dc] of offsets) {
             const r = last.row + dr;
             const c = last.col + dc;
@@ -399,22 +418,64 @@ function findBestMove() {
         gameState.board[move.row][move.col] = EMPTY;
     }
     
-    // Alpha-Beta搜索
-    let bestMove = null;
-    let bestScore = -Infinity;
+    // Alpha-Beta搜索 + 多样性
+    let scoredMoves = [];
     
     for (const move of candidates) {
         gameState.board[move.row][move.col] = aiColor;
-        const score = minimax(depth - 1, -Infinity, Infinity, false, aiColor);
+        let score = minimax(depth - 1, -Infinity, Infinity, false, aiColor);
         gameState.board[move.row][move.col] = EMPTY;
         
-        if (score > bestScore) {
-            bestScore = score;
-            bestMove = move;
-        }
+        // 根据AI风格调整分数
+        score = applyStyleBonus(move, score, aiColor);
+        
+        // 添加随机因子（让棋路更多样）
+        score += (Math.random() - 0.5) * AI_RANDOM_FACTOR * Math.abs(score);
+        
+        scoredMoves.push({ move, score });
     }
     
-    return bestMove;
+    // 按分数排序
+    scoredMoves.sort((a, b) => b.score - a.score);
+    
+    // 困难模式：从前3个最佳中随机选（增加不可预测性）
+    // 简单/中等：选最佳
+    if (gameState.difficulty === 'hard' && scoredMoves.length >= 3) {
+        const topN = Math.min(3, scoredMoves.length);
+        const pick = Math.floor(Math.random() * topN);
+        return scoredMoves[pick].move;
+    }
+    
+    return scoredMoves.length > 0 ? scoredMoves[0].move : null;
+}
+
+// 根据AI风格给予额外加分
+function applyStyleBonus(move, score, aiColor) {
+    const centerDist = Math.abs(move.row - 7) + Math.abs(move.col - 7);
+    
+    switch (aiStyle) {
+        case 'aggressive':
+            // 进攻型：优先自己的进攻点
+            score *= 1.1;
+            break;
+        case 'defensive':
+            // 防守型：更关注对手的威胁
+            break;
+        case 'center':
+            // 中心型：偏好靠近中心
+            score += (14 - centerDist) * 100;
+            break;
+        case 'edge':
+            // 边缘型：偏好边缘布局
+            score += centerDist * 50;
+            break;
+        case 'balanced':
+        default:
+            // 平衡型
+            break;
+    }
+    
+    return score;
 }
 
 function minimax(depth, alpha, beta, isMaximizing, aiColor) {
@@ -489,8 +550,8 @@ function getCandidateMoves() {
         return scoreB - scoreA;
     });
     
-    // 限制候选数量（保证速度）
-    const maxCandidates = gameState.difficulty === 'hard' ? 12 : (gameState.difficulty === 'medium' ? 10 : 8);
+    // 限制候选数量（地狱难度增加候选）
+    const maxCandidates = gameState.difficulty === 'hard' ? 15 : (gameState.difficulty === 'medium' ? 12 : 10);
     return candidates.slice(0, maxCandidates);
 }
 
